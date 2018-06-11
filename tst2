@@ -1,0 +1,109 @@
+import warnings
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+warnings.filterwarnings("ignore")
+path1 = 'E:/Python_Project/Data/Data_Challenge/airbnb-zillow-data-challenge-master/'
+
+df_cost = pd.read_csv(path1 +'Zip_Zhvi_2bedroom.csv')
+df_rev  = pd.read_csv(path1 + 'listings.csv',dtype = object)
+
+#leave only relevant variables in df_cost
+cost_var = [v for v in df_cost.columns if v not in ['RegionID','City','State','Metro','CountyName','SizeRank']]
+
+#create a relevant variable list in df_rev
+rev_var = ['id','scrape_id','last_scraped','zipcode','property_type','room_type','bedrooms','bed_type','price',
+           'weekly_price','monthly_price','security_deposit','cleaning_fee']
+
+
+#creat date frame which only contain immediate relevant information
+df_cost_slim = df_cost[cost_var]
+df_rev_slim  = df_rev[rev_var]
+
+
+#create list of zipcode for NYC
+#from 'NYC By Natives':https://www.nycbynatives.com/nyc_info/new_york_city_zip_codes.php
+df_NY_zip   = pd.read_csv(path1 + 'ny_zip.csv') 
+
+
+#Validity
+
+#create an attributes to show if this record is about NYC
+df_cost_slim.loc[:,'NYC?'] = [v in [v for v in df_NY_zip['zip']] for v in df_cost_slim['RegionName']]
+df_rev_slim.loc[:,'NYC?'] = [v in [str(v) for v in df_NY_zip['zip']] for v in df_rev_slim['zipcode']]
+
+print('df_cost_slim location classification')
+print(df_cost_slim.groupby('NYC?').count()['RegionName'])
+print('\ndf_rev_slim location classification' )
+print(df_rev_slim.groupby('NYC?').count()['zipcode'])
+
+#get NYC data from the whole data set
+df_cost_slim = df_cost_slim[df_cost_slim['RegionName'].isin([v for v in df_NY_zip['zip']])]
+df_rev_slim = df_rev_slim[df_rev_slim['zipcode'].isin([str(v) for v in df_NY_zip['zip']])]
+
+#get the time range for revenue info
+print('the unique last_scrape(s) are :' + str(set(df_rev_slim['last_scraped'])))
+print('the unique scrape_id(s) are :' + str(set(df_rev_slim['scrape_id'])))
+
+#plot cost data along with the time
+plt.figure(figsize=(18,15))
+for i in df_cost_slim.index:
+    plt.plot(df_cost_slim.loc[i,'1996-04':'2017-06'])
+    plt.xticks([v for k,v in enumerate(df_cost_slim.columns[1:]) if (k % 80) == 0])
+    plt.legend(df_cost_slim.RegionName)
+plt.show()
+
+
+#get corresponding time range for cost data
+df_cost_slim = df_cost_slim[['RegionName','2017-04','2017-05']]
+df_cost_slim['est_cost'] = df_cost_slim[['2017-04','2017-05']].mean(axis = 1)
+#get only final relevant cost data
+df_cost_slim = df_cost_slim[['RegionName', 'est_cost']]
+
+#change price from string to float number
+df_rev_slim['price'] =[float(v[1:].replace(',','')) for v in  df_rev_slim['price']]
+
+df_rev_slim.boxplot('price')
+
+#check the type of room and number of bedrooms
+df_rev_slim.groupby(['room_type','bedrooms']).describe()['price']
+
+#get the revenue for two-bed room Enire home/apt only:
+df_rev_slim = df_rev_slim[(df_rev_slim['room_type'] == 'Entire home/apt') &
+                          (df_rev_slim['bedrooms'] == '2')]
+
+#get the revenue for two-bed room Enire home/apt only:
+df_rev_slim = df_rev_slim[df_rev_slim['bed_type'].isin(['Real Bed','Futon','Couch'])]
+
+
+print('df_rev_slim has {} records'.format(df_rev_slim.shape[0]))
+df_rev_slim.describe()
+
+#inner join df_rev_slim and df_cost_slim
+df_cost_slim['RegionName'] = df_cost_slim['RegionName'].astype(str) #change the merge key data type
+df_cost_slim.columns = ['zipcode','est_cost']                          #change the merge key name 
+
+
+df_2bed = pd.merge(df_rev_slim,df_cost_slim,on = 'zipcode',how ='inner' )
+df_2bed.describe(include = 'all')
+
+
+occupation_rate = 0.7
+df_2bed['BreakEven_days'] = (df_2bed['est_cost'] / df_2bed['price']) / occupation_rate
+df_2bed['BreakEven_year'] = df_2bed['BreakEven_days'] / 365
+
+
+summary = df_2bed.groupby('zipcode').mean()[['price','est_cost','BreakEven_days','BreakEven_year']]
+#summary = summary.iloc[:, summary.columns.get_level_values(1).isin(['mean','50%'])]
+
+summary['year'] = summary.est_cost/(summary.price *0.7*356)
+
+
+#plot cost data along with the time
+plt.figure(figsize=(18,15))
+
+summary.price.plot()
+summary.BreakEven_days.plot()
+summary.est_cost.plot(secondary_y=True)
+
