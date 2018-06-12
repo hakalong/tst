@@ -1,0 +1,252 @@
+import warnings
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+warnings.filterwarnings("ignore")
+############################################import_data#####################################################
+
+path1 = '/ap1/wangzh01/python/data/'
+df_cost = pd.read_csv(path1 +'ZipZhvi2bedroom .csv')
+df_rev  = pd.read_csv(path1 + 'listings.csv',dtype = object)
+
+# leave only relevant variables in df_cost
+cost_var = [v for v in df_cost.columns if v not in ['RegionID','City','State','Metro','CountyName','SizeRank']]
+
+# create a relevant variable list in df_rev
+rev_var = ['id','scrape_id','last_scraped','zipcode','property_type','room_type','bedrooms','bed_type','price',
+           'weekly_price','monthly_price','security_deposit','cleaning_fee']
+
+# create date frames which only contain immediate relevant information
+df_cost_slim = df_cost[cost_var]
+df_rev_slim  = df_rev[rev_var]
+
+# create list of zip code for NYC
+df_NY_zip = pd.read_csv(path1 + 'ny_zip.csv')
+
+########################################completeness & Uniqueness########################################
+print('The shape of Cost Data is {}.'.format(df_cost_slim.shape))
+print('The shape of Revenue Data is {}.'.format(df_rev_slim.shape))
+
+print(df_cost_slim.describe())
+print(df_rev_slim.describe())
+
+
+########################################Validity & Accuracy########################################
+# create an attributes to show if this record is about NYC
+df_cost_slim.loc[:,'NYC?'] = [v in [v for v in df_NY_zip['ZIP']] for v in df_cost_slim['RegionName']]
+df_rev_slim.loc[:,'NYC?'] = [v in [str(v) for v in df_NY_zip['ZIP']] for v in df_rev_slim['zipcode']]
+print('\ndf_cost_slim location classification')
+print(df_cost_slim.groupby('NYC?').count()['RegionName'])
+print('\ndf_rev_slim location classification')
+print(df_rev_slim.groupby('NYC?').count()['zipcode'])
+
+
+# write the rev/cost zip to excel file
+writer = pd.ExcelWriter(path1 + 'slim_zip.xlsx')
+df_cost_slim[df_cost_slim['NYC?'] == True][['RegionName']].to_excel(writer, 'cost', index=False)
+df_rev_slim[df_rev_slim['NYC?'] == True][['zipcode']].to_excel(writer, 'rev', index=False)
+writer.save()
+
+# get only NYC data from the whole data set
+df_cost_slim = df_cost_slim[df_cost_slim['NYC?'] == True]
+df_rev_slim = df_rev_slim[df_rev_slim['NYC?'] == True]
+
+print('\nThe shape of Cost Data is {}.'.format(df_cost_slim.shape))
+print('The shape of Revenue Data is {}.'.format(df_rev_slim.shape))
+
+
+print('\nthere are {} records in df_rev_slim'.format(df_rev_slim.shape[0]))
+print(df_rev_slim.describe()[['price', 'weekly_price', 'monthly_price']])
+
+# change price from string to float number
+df_rev_slim['price'] = [float(v[1:].replace(',', '')) for v in df_rev_slim['price']]
+
+# check the type of property
+print(set(df_rev_slim.property_type))
+df_rev_slim = df_rev_slim[~df_rev_slim['property_type'].isin(['Boat', 'Bed & Breakfast', 'Timeshare'])]
+
+# check the type of room and number of bedrooms
+print(df_rev_slim.groupby(['room_type', 'bedrooms']).describe()['price'])
+# get the revenue for two-bed room Entire home/apt only:
+df_rev_slim = df_rev_slim[(df_rev_slim['room_type'] == 'Entire home/apt') &
+                          (df_rev_slim['bedrooms'] == '2')]
+
+# check the impact of bed_type:
+print(df_rev_slim.groupby(['room_type', 'bed_type']).describe()['price'])
+# get the revenue for real bed and futon, couch:
+df_rev_slim = df_rev_slim[df_rev_slim['bed_type'].isin(['Real Bed', 'Futon', 'Couch'])]
+
+
+# check the distribution of price in Revenue data
+print(df_rev_slim.describe(percentiles=[.1, .15, .25, .5, .75, .9, .99, .95, .995]))
+# create and save a box plot of price in revenue data
+df_rev_slim.boxplot('price')
+plt.savefig(path1+'price_boxplot.png')
+plt.show()
+plt.close()
+
+# get revenue records that with price range of $50 to $2000
+df_rev_slim = df_rev_slim[df_rev_slim['price'].between(50, 2000)]
+
+print('df_rev_slim has {} records'.format(df_rev_slim.shape[0]))
+print(df_rev_slim.describe())
+
+
+
+########################################Timeliness##########################################
+# get the time range for revenue info
+print('the unique last_scrape(s) are :' + str(set(df_rev_slim['last_scraped'])))
+print('the unique scrape_id(s) are :' + str(set(df_rev_slim['scrape_id'])))
+
+# leave only immediate relevant variables left in revenue
+df_rev_slim = df_rev_slim[['id', 'zipcode', 'price']]
+
+# plot cost data along with the time
+for i in df_cost_slim.index:
+    plt.plot(df_cost_slim.loc[i,'1996-04':'2017-06'])
+    number_xticks = len(df_cost_slim.columns)//5   #5 is number of x-axis value showed
+    plt.xticks([v for k,v in enumerate(df_cost_slim.columns[1:]) if (k % number_xticks) == 0])  # not showing the all x-axis label
+plt.savefig(path1+'hist_cost.png')
+plt.show()
+
+# get corresponding time range for cost data
+df_cost_slim = df_cost_slim[['RegionName', '2017-04', '2017-05']]
+# get estimated cost by averaging 2017-04 and 2017-05 cost data
+df_cost_slim['est_cost'] = df_cost_slim[['2017-04', '2017-05']].mean(axis=1)
+
+# get only final relevant cost data
+df_cost_slim = df_cost_slim[['RegionName', 'est_cost']]
+df_cost_slim = df_cost_slim.sort_values('RegionName').reset_index(drop=True)
+
+# write the rev/cost zip to excel file
+writer = pd.ExcelWriter(path1 + 'est_cost.xlsx')
+df_cost_slim.to_excel(writer, 'est_cost', index=False)
+writer.save()
+
+# create colors for different regions group
+colors = []
+for i in df_cost_slim.index:
+    if i < 11:
+        colors.append('lightcoral')
+    elif i < 19:
+        colors.append('lightskyblue')
+    elif i < 20:
+        colors.append('orange')
+    elif i < 24:
+        colors.append('gold')
+    else:
+        colors.append('orange')
+
+# create bar chart for estimate cost, assigning same color for similar geographical location
+plt.figure(figsize=(16, 10))  # plot size
+plt.bar(np.arange(len(df_cost_slim['est_cost'])), df_cost_slim['est_cost'], color=colors)
+plt.xticks(np.arange(len(df_cost_slim['est_cost'])), df_cost_slim['RegionName'],rotation= 30)
+plt.savefig(path1 + 'est_cost.png')
+plt.show()
+plt.close()
+
+########################################Consistency##########################################
+# change the merge key data type
+df_cost_slim['RegionName'] = df_cost_slim['RegionName'].astype(str)
+# leave only immediate relevant variables left in cost and change the merge key name
+df_cost_slim.columns = ['zipcode', 'est_cost']
+
+
+########################################Data Munging##########################################
+# df_rev = data frame for revenue, df_cost = data frame for cost
+# key = merge key (zipcode in our case)
+# OR = occupation rate, days = days in a year
+# price = name of attribute containing revenue information(price in our case)
+# cost  = name of attribute containing cost information (est_cost in our cast)
+# ids   = name of attributes using as unique identifier( id from revenue data in our case)
+def df_merge(df_rev, df_cost,OR,days,key='zipcode',price='price',cost='est_cost',ids='id'):
+    #inner join the revenue and cost data
+    df_all = pd.merge(df_rev,df_cost,on=key, how='inner')
+    print(df_all.describe(include='all'))
+    
+    #calculate average revenue and cost on key level
+    df_sum = df_all.groupby(key).mean()[[price,cost]]
+    df_sum = df_all.groupby(key).count()[[ids]].join(df_sum)
+    df_sum.columns = ['count',price,cost]
+    
+    # calculate BreakEve_year and daily return rate
+    df_sum['BreakEven_year'] = df_sum[cost]/(df_sum[price]* OR * days)
+    df_sum['daily_return_rate'] = df_sum[price]/ df_sum[cost]
+    print(df_sum)
+    
+    return df_all, df_sum
+
+df_2bed,summary = df_merge(df_rev_slim,df_cost_slim,0.75,365)
+
+# # write summary to excel
+# writer = pd.ExcelWriter(path1 + 'summary.xlsx')
+# summary.to_excel(writer, 'est_cost', index=True)
+# writer.save()
+
+# plot average cost and revenue data in each zip code
+plt.figure(figsize=(12, 9))
+plt.title('average cost and revenue data in each zip code')
+summary['price'].plot(kind='bar',  colors=['lightcoral'], legend=True, position=0, width=0.3)
+summary['est_cost'].plot(kind='bar', secondary_y=True, colors=['lightblue'], legend=True, position=1, width=0.3)
+plt.savefig(path1 + 'rev_vs_cost.png')
+plt.show()
+plt.close()
+
+
+# plot BreakEven_year and daily_return_rate in each zip code
+plt.figure(figsize=(13, 9))
+plt.title('BreakEven_year and daily_return_rate in each zip code')
+summary['BreakEven_year'].plot(kind='line', marker='*', ms=10, legend=True)
+summary['daily_return_rate'].plot(kind='line', marker='x', ms=10, legend=True, secondary_y=True,rot=30)
+plt.xticks(range(len(summary.index)), tuple(summary.index))
+plt.savefig(path1 + 'bvy_vs_drr.png')
+plt.show()
+plt.close()
+
+# create colors for different regions group
+colors2 = []
+for i in summary.index:
+    if i in ['10003', '10011', '10013', '10014', '10021', '10022', '10023', '10025', '10028','10036', '10128']:
+        colors2.append('lightcoral')
+    elif i in [ '10304', '10305', '10306', '10308', '10312']:
+        colors2.append('lightskyblue')
+    elif i in ['11201', '11215', '11217', '11231']:
+        colors2.append('gold')
+    else:
+        colors2.append('orange')
+
+# create bar chart for BreakEven_year, assigning same color for similar geographical location
+plt.figure(figsize=(16, 10))  # plot size
+plt.title('BreakEven_year in each zip code same code for similar locations')
+plt.bar(np.arange(len(summary['BreakEven_year'])), summary['BreakEven_year'], color=colors2)
+plt.xticks(np.arange(len(summary['BreakEven_year'])), summary.index)
+plt.savefig(path1 + 'bey_color.png')
+plt.show()
+plt.close()
+
+
+# plot BreakEven_year and cost in each zip code
+plt.figure(figsize=(12, 9))
+plt.title('BreakEven_year and cost in each zip code')
+summary['est_cost'].plot(kind='bar',  legend=True, colors='lightskyblue')
+summary['BreakEven_year'].plot(kind='line', marker='*', ms=10, colors='lightcoral', legend=True, secondary_y=True)
+plt.savefig(path1 + 'bvy_vs_cost.png')
+plt.show()
+plt.close()
+
+
+# plot BreakEven_year and revenue in each zip code
+plt.figure(figsize=(12, 9))
+plt.title('BreakEven_year and revenue in each zip code')
+summary['price'].plot(kind='bar',  legend=True, colors='lightskyblue')
+summary['BreakEven_year'].plot(kind='line', marker='*', ms=10, colors='lightcoral', legend=True, secondary_y=True)
+plt.savefig(path1 + 'bvy_vs_rev.png')
+plt.show()
+plt.close()
+
+# write the sorted result into excel
+writer = pd.ExcelWriter(path1 + 'summary_order.xlsx')
+summary.sort_values('BreakEven_year').to_excel(writer, 'Breakeven_year', index=True)
+summary.sort_values('daily_return_rate',ascending =False).to_excel(writer, 'daily_return_rate', index=True)
+writer.save()
