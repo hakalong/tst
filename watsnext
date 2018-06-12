@@ -1,0 +1,48 @@
+import warnings
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+warnings.filterwarnings("ignore")
+path1 = '/ap1/wangzh01/python/data/'
+
+#reading revenue data and cost data
+df_cost = pd.read_csv(path1 +'ZipZhvi2bedroom .csv')
+df_rev  = pd.read_csv(path1 + 'listings.csv',dtype = object)
+
+# create list of zip code for NYC
+df_NY_zip = pd.read_csv(path1 + 'ny_zip.csv')
+
+# get NYC records only
+df_rev_slim = df_rev[df_rev['zipcode'].isin([str(v) for v in df_NY_zip['ZIP']])]
+df_cost_slim = df_cost_slim[df_cost_slim['RegionName'].isin([v for v in df_NY_zip['ZIP']])]
+
+# calculate the occupancy rate
+df_rev_slim['est_or'] = [(30 - int(v))/ 30 if len(v) >0 else 1 for v in df_rev_slim['availability_30']]
+
+# get summary data for occupancy rate
+df_rev_slim.describe(include = 'all')[['id','zipcode','availability_30','est_or']]
+
+# get list of zip code in cost data
+cost_zip = [str(v) for v in list(set(df_cost_slim['RegionName']))]
+# get records that in cost data zip code list
+df_rev_slim = df_rev_slim[df_rev_slim['zipcode'].isin(cost_zip)]
+
+# calculate the occupancy rate
+df_rev_slim['est_or'] = [(30 - int(v))/ 30 if len(v) >0 else 1 for v in df_rev_slim['availability_30']]
+
+# get summary data for occupancy rate
+df_rev_slim.describe(include = 'all')[['id','zipcode','availability_30','est_or']]
+
+plt.figure(figsize = (14,10))
+plt.title('est_or mean and count in each zip code')
+df_rev_slim.groupby('zipcode').describe()['est_or']['count'].plot(kind='bar',  legend=True, colors='lightskyblue')
+df_rev_slim.groupby('zipcode').describe()['est_or']['mean'].plot(kind='line', marker='*', ms=10, colors='lightcoral', legend=True, secondary_y=True, rot=30)
+plt.savefig(path1 + 'or_zip.png')
+plt.show()
+plt.close()
+
+# change price from string to float number
+df_rev_slim['price'] = [float(v[1:].replace(',', '')) for v in df_rev_slim['price']]
+
+df_rev_slim.groupby('bedrooms').describe()['price']
