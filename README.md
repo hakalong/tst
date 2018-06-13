@@ -23,7 +23,7 @@ All code are generated in python3.6.5 and in windows 64 system. Packages used ar
 
 + data
     - Zip_Zhvi_2bedroom.csv
-    - listings.csv
+    - AirBnB Dataset Link.txt
     - ny_zip.csv
         - Only external data is New York City zip code. To get the New York City zip code list, search New York City in the search bar on page https://www.unitedstateszipcodes.org/.
 
@@ -45,4 +45,6 @@ All code are generated in python3.6.5 and in windows 64 system. Packages used ar
     - bvy_vs_rev.png
     - or_zip.png
  
-I am aware that all the plots should be created directly in my code. All numerical analysis, return calculationa are supported by plots and tables created directly in python. Excel 3D map application only provides better visuliazation effect in whats next section.
+
+# Announcement
+I am aware that all the plots should be created directly in my code. All numerical analysis, return calculationa are supported by plots and tables created directly in python. Excel 3D map application only provides better visuliazation effect in What's Next section.
