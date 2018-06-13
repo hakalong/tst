@@ -30,7 +30,6 @@ All code are generated in python3.6.5 and in windows 64 system. Packages used ar
 
 
 + tables
-    - summary.xlsx
     - slim_zip.xlsx
     - est_cost.xlsx
     - summary_order.xlsx
