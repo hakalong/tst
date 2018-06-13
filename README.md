@@ -1,5 +1,5 @@
 # Backgroud
-All code are generated in python3.6.5 and in windows 64 system. Packages used are numpy,pandas,matplotlib. There should be 17 files in total.
+All code are generated in python3.6.5 and in windows 64 system. Packages used are numpy,pandas,matplotlib. There should be 18 files in total.
 
 # Project Organization
 
@@ -12,6 +12,7 @@ All code are generated in python3.6.5 and in windows 64 system. Packages used ar
 
 
 + documents
+    - README.md
     - AirBnB_report.docx
         - AirBnB_report.docx contains three parts:Data quality insight, Visualization insight, and what's next. It documents the process done in main_part.py.
     - appendix.docx
