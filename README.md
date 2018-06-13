@@ -1,6 +1,8 @@
 # Backgroud
 All code are generated in python3.6.5 and in windows 64 system. Packages used are numpy,pandas,matplotlib. There should be files in total.
 
+# Project Organization
+
 + codes
     - main_part.py
         -  The main_part.py imports data, checks the data quality and calculates the short term return(breakeven year and daily return rate).
@@ -33,7 +35,14 @@ All code are generated in python3.6.5 and in windows 64 system. Packages used ar
     - summary_order.xlsx
 
 + graphs
-    - 
-    
-
+    - price_boxplot.png
+    - rev_vs_cost.png
+    - hist_cost.png
+    - est_cost.png
+    - bvy_vs_drr.png
+    - bvy_vs_cost.png
+    - bvy_color.png
+    - bvy_vs_rev.png
+    - or_zip.png
+ 
 I am aware that all the plots should be created directly in my code. All numerical analysis, return calculationa are supported by plots and tables created directly in python. Excel 3D map application only provides better visuliazation effect in whats next section.
