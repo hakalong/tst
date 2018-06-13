@@ -1,5 +1,5 @@
 # Backgroud
-All code are generated in python3.6.5 and in windows 64 system. Packages used are numpy,pandas,matplotlib. There should be files in total.
+All code are generated in python3.6.5 and in windows 64 system. Packages used are numpy,pandas,matplotlib. There should be 17 files in total.
 
 # Project Organization
 
@@ -47,4 +47,4 @@ All code are generated in python3.6.5 and in windows 64 system. Packages used ar
  
 
 # Announcement
-I am aware that all the plots should be created directly in my code. All numerical analysis, return calculationa are supported by plots and tables created directly in python. Excel 3D map application only provides better visuliazation effect in What's Next section.
+I am aware that all the plots should be created directly in my code. All numerical analysis, return calculation are supported by plots and tables created directly in python. Excel 3D map application only provides better visuliazation effect in What's Next section.
